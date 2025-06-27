@@ -1,29 +1,169 @@
-# Create T3 App
+# Fake News Analyzer
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+A comprehensive web-based platform for analyzing and validating news content against trusted sources to combat misinformation.
 
-## What's next? How do I make an app with this?
+## Overview
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+The Fake News Analyzer helps users verify the authenticity of news content by cross-referencing it with administrator-configured trusted sources. The system processes multiple content formats including text, images, and videos to provide comprehensive fact-checking capabilities.
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+## Tech Stack
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+- **Framework**: T3 Stack (Next.js, TypeScript, tRPC)
+- **Database**: Prisma ORM
+- **Authentication**: NextAuth.js
+- **Styling**: Tailwind CSS
 
-## Learn More
+## Core Features
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+### Dynamic Truth Source Management
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+**Administrator-Controlled Trusted Sources**
+- Admin dashboard for managing trusted news sources and fact-checkers
+- Legal compliance through operator responsibility model
+- All verification outputs clearly state "Verified by [Organization Name] source"
+- Complete audit trail for source modifications and validations
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+### Multi-Format Content Analysis
 
-## How do I deploy this?
+**Supported Input Types:**
+- **News URLs**: Automatic content fetching with intelligent parsing
+  - Primary method: Standard HTTP requests
+  - Fallback: Agent-based fetching for dynamic/JavaScript-heavy pages
+- **Raw Text**: Direct article text input and analysis
+- **Images/Screenshots**: OCR-powered text extraction and analysis
+- **Video Content**: Speech-to-text processing for TikTok, news clips, and social media videos
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+### Content Processing Pipeline
+
+**Unified Text Extraction**
+- OCR (Optical Character Recognition) for image-based content
+- Speech-to-text conversion for audio/video content
+- Intelligent web scraping with dynamic content handling
+- Metadata preservation (timestamps, sources, authors)
+- Multi-language support
+
+### Validation Engine
+
+**Cross-Reference Analysis**
+- Real-time comparison against trusted source database
+- Content similarity detection and contradiction identification
+- Visual highlighting of differences and discrepancies
+- Confidence scoring and reliability assessment
+- Detailed validation reports with source attribution
+
+## Database Schema
+
+Built with Prisma ORM supporting:
+- User management and authentication
+- Trusted source configuration
+- Content analysis history
+- Validation results and reports
+- Admin audit logs
+
+## API Architecture
+
+**tRPC-Powered Backend**
+- Type-safe API endpoints
+- Real-time validation processing
+- Secure admin operations
+- Content fetching and analysis services
+- File upload and processing handlers
+
+## Legal Compliance
+
+**Operator Responsibility Model**
+- Admin-controlled source verification ensures legal protection
+- Clear attribution requirements for all validation results
+- Comprehensive audit trails for transparency
+- Compliance with fact-checking industry standards
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- PostgreSQL database
+- Environment variables configured
+
+### Installation
+
+```bash
+# Clone the repository
+git clone [repository-url]
+cd fake-news-analyzer
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+
+# Set up database
+npx prisma db push
+npx prisma generate
+
+# Run development server
+npm run dev
+```
+
+### Environment Variables
+
+```bash
+DATABASE_URL="postgresql://..."
+NEXTAUTH_SECRET="your-secret"
+NEXTAUTH_URL="http://localhost:3000"
+# Add OCR and speech-to-text API keys
+```
+
+## Development
+
+### Database Management
+
+```bash
+# Reset database
+npx prisma db reset
+
+# View database in browser
+npx prisma studio
+
+# Deploy schema changes
+npx prisma db push
+```
+
+### Build and Deploy
+
+```bash
+# Build for production
+npm run build
+
+# Start production server
+npm start
+```
+
+## Key Security Features
+
+- Admin-only access to truth source management
+- Secure file upload handling
+- Rate limiting on analysis requests
+- Input sanitization and validation
+- Audit logging for all administrative actions
+
+## Future Enhancements
+
+- Advanced ML-based content similarity detection
+- Real-time fact-checking browser extension
+- API access for third-party integrations
+- Multi-tenant support for organizations
+- Advanced reporting and analytics dashboard
+
+## Contributing
+
+Please read our contributing guidelines before submitting pull requests.
+
+## License
+
+[License to be determined]
+
+---
+
+**Built with T3 Stack for type safety, performance, and developer experience in the fight against misinformation.**
