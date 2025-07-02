@@ -1,4 +1,4 @@
-// This is your Prisma schema file,
+// This is your Prisma schema file for Fake News Analyzer
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -7,26 +7,13 @@ generator client {
 
 datasource db {
     provider = "postgresql"
-    // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
-    // Further reading:
-    // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
-    // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
     url      = env("DATABASE_URL")
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+// ================================
+// Authentication & User Management
+// ================================
 
-    createdBy   User   @relation(fields: [createdById], references: [id])
-    createdById String
-
-    @@index([name])
-}
-
-// Necessary for Next auth
 model Account {
     id                       String  @id @default(cuid())
     userId                   String
@@ -60,9 +47,17 @@ model User {
     email         String?   @unique
     emailVerified DateTime?
     image         String?
-    accounts      Account[]
-    sessions      Session[]
-    posts         Post[]
+    role          UserRole  @default(USER)
+    isActive      Boolean   @default(true)
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+
+    // Relations
+    accounts     Account[]
+    sessions     Session[]
+    truthSources TruthSource[]
+    analyses     Analysis[]
+    auditLogs    AuditLog[]
 }
 
 model VerificationToken {
@@ -71,4 +66,325 @@ model VerificationToken {
     expires    DateTime
 
     @@unique([identifier, token])
+}
+
+enum UserRole {
+    ADMIN
+    MODERATOR
+    USER
+}
+
+// ================================
+// Module 1: Truth Sources
+// ================================
+
+model TruthSource {
+    id          String         @id @default(cuid())
+    name        String
+    url         String
+    category    SourceCategory
+    reliability Int            @default(80) // 0-100 scale
+    isActive    Boolean        @default(true)
+    apiKey      String?        @db.Text
+    apiEndpoint String?
+    description String?        @db.Text
+
+    // Metrics
+    totalValidations Int       @default(0)
+    successRate      Float     @default(0)
+    lastValidated    DateTime?
+
+    // Metadata
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    createdBy   User     @relation(fields: [createdById], references: [id])
+    createdById String
+
+    // Relations
+    validations SourceValidation[]
+
+    @@index([category])
+    @@index([isActive])
+    @@index([reliability])
+}
+
+enum SourceCategory {
+    NEWS
+    FACT_CHECK
+    ACADEMIC
+    GOVERNMENT
+    SOCIAL_MEDIA
+    EXPERT
+}
+
+// ================================
+// Module 2: Content Analysis
+// ================================
+
+model Analysis {
+    id String @id @default(cuid())
+
+    // Input content
+    inputType   ContentType
+    sourceUrl   String?     @db.Text
+    textContent String?     @db.Text
+
+    // Analysis results
+    status        AnalysisStatus      @default(PENDING)
+    confidence    Float? // 0-100 confidence score
+    overallResult VerificationResult?
+    summary       String?             @db.Text
+    details       String?             @db.Text
+
+    // Processing metadata
+    processingStarted   DateTime?
+    processingCompleted DateTime?
+    errorMessage        String?   @db.Text
+
+    // Anonymous user tracking (optional)
+    sessionId String? // For tracking anonymous sessions
+    ipAddress String? // For rate limiting and analytics
+    userAgent String? @db.Text
+
+    // Metadata
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    createdBy   User?    @relation(fields: [createdById], references: [id])
+    createdById String? // Optional - null for anonymous users
+
+    // Relations
+    mediaFiles       MediaFile[]
+    extractedContent ExtractedContent[]
+    validations      SourceValidation[]
+
+    @@index([status])
+    @@index([inputType])
+    @@index([createdAt])
+    @@index([sessionId])
+    @@index([ipAddress])
+}
+
+enum ContentType {
+    URL
+    TEXT
+    IMAGE
+    VIDEO
+    AUDIO
+    MIXED
+}
+
+enum AnalysisStatus {
+    PENDING
+    PROCESSING
+    EXTRACTING
+    VALIDATING
+    COMPLETED
+    FAILED
+    CANCELLED
+}
+
+enum VerificationResult {
+    VERIFIED
+    DISPUTED
+    FALSE
+    MIXED
+    INSUFFICIENT_DATA
+}
+
+// ================================
+// Module 3: Content Extraction & Media
+// ================================
+
+model MediaFile {
+    id String @id @default(cuid())
+
+    // MinIO object storage details
+    bucketName   String
+    objectKey    String @unique
+    originalName String
+    mimeType     String
+    fileSize     Int
+
+    // File metadata
+    mediaType  MediaType
+    duration   Int? // for video/audio in seconds
+    dimensions String? // "width:height" for images/videos
+
+    // Processing status
+    isProcessed     Boolean @default(false)
+    processingError String? @db.Text
+
+    // Metadata
+    uploadedAt DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    // Relations
+    analysis         Analysis           @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+    analysisId       String
+    extractedContent ExtractedContent[]
+
+    @@index([mediaType])
+    @@index([isProcessed])
+}
+
+enum MediaType {
+    IMAGE
+    VIDEO
+    AUDIO
+    DOCUMENT
+}
+
+model ExtractedContent {
+    id String @id @default(cuid())
+
+    // Extracted data
+    extractedText    String?          @db.Text
+    extractedAudio   String?          @db.Text // speech-to-text result
+    extractionMethod ExtractionMethod
+    confidence       Float? // OCR/STT confidence
+    language         String? // detected language
+
+    // Processing metadata
+    processingTime Int? // milliseconds
+    extractedAt    DateTime @default(now())
+
+    // Relations
+    analysis    Analysis   @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+    analysisId  String
+    mediaFile   MediaFile? @relation(fields: [mediaFileId], references: [id], onDelete: Cascade)
+    mediaFileId String?
+
+    @@index([extractionMethod])
+}
+
+enum ExtractionMethod {
+    OCR
+    SPEECH_TO_TEXT
+    MANUAL_TRANSCRIPTION
+    WEB_SCRAPING
+    API_FETCH
+}
+
+// ================================
+// Module 4: Validation
+// ================================
+
+model SourceValidation {
+    id String @id @default(cuid())
+
+    // Validation details
+    truthSource   TruthSource @relation(fields: [truthSourceId], references: [id])
+    truthSourceId String
+    analysis      Analysis    @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+    analysisId    String
+
+    // Validation results
+    result          VerificationResult
+    confidence      Float // 0-100
+    matchPercentage Float? // text/semantic matching percentage
+
+    // Comparison details
+    comparisonMethod ComparisonMethod
+    matchedContent   String?          @db.Text
+    differences      String?          @db.Text // JSON array of differences
+    sourceContent    String?          @db.Text // content from truth source
+
+    // Processing metadata
+    validatedAt    DateTime @default(now())
+    processingTime Int? // milliseconds
+
+    @@index([result])
+    @@index([truthSourceId])
+    @@index([analysisId])
+}
+
+enum ComparisonMethod {
+    EXACT_MATCH
+    SEMANTIC_SIMILARITY
+    FACT_CHECKING
+    CROSS_REFERENCE
+    EXPERT_REVIEW
+    AUTOMATED_ANALYSIS
+}
+
+// ================================
+// Analytics & Monitoring
+// ================================
+
+model AnalyticsEvent {
+    id        String   @id @default(cuid())
+    eventType String
+    eventData String?  @db.Text // JSON data
+    userId    String? // Optional - null for anonymous users
+    sessionId String? // For tracking anonymous sessions
+    ipAddress String?
+    userAgent String?  @db.Text
+    timestamp DateTime @default(now())
+
+    @@index([eventType])
+    @@index([timestamp])
+    @@index([userId])
+    @@index([sessionId])
+}
+
+model AuditLog {
+    id           String   @id @default(cuid())
+    action       String
+    resourceType String
+    resourceId   String
+    oldValues    String?  @db.Text // JSON
+    newValues    String?  @db.Text // JSON
+    timestamp    DateTime @default(now())
+
+    user   User   @relation(fields: [userId], references: [id])
+    userId String
+
+    @@index([action])
+    @@index([resourceType])
+    @@index([timestamp])
+    @@index([userId])
+}
+
+// ================================
+// Configuration & Settings
+// ================================
+
+model SystemConfiguration {
+    id          String   @id @default(cuid())
+    key         String   @unique
+    value       String   @db.Text
+    description String?  @db.Text
+    isSecret    Boolean  @default(false)
+    updatedAt   DateTime @updatedAt
+    updatedBy   String?
+
+    @@index([key])
+}
+
+model ProcessingQueue {
+    id           String      @id @default(cuid())
+    taskType     String
+    payload      String      @db.Text // JSON
+    status       QueueStatus @default(PENDING)
+    priority     Int         @default(0)
+    attempts     Int         @default(0)
+    maxAttempts  Int         @default(3)
+    errorMessage String?     @db.Text
+    scheduledFor DateTime?
+    startedAt    DateTime?
+    completedAt  DateTime?
+    createdAt    DateTime    @default(now())
+
+    @@index([status])
+    @@index([taskType])
+    @@index([priority])
+    @@index([scheduledFor])
+}
+
+enum QueueStatus {
+    PENDING
+    PROCESSING
+    COMPLETED
+    FAILED
+    CANCELLED
 }
